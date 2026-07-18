@@ -2,18 +2,15 @@
 #include "MPU6050.h"
 #include "Kalman.h"
 
+// Instantiate separate Kalman structures for the two spatial axes
 Kalman_t kalmanRoll;
 Kalman_t kalmanPitch;
 
-void FlightController_SensorProcess(float dt) {
-    // 1. Tell the sensor driver to update the global drone state
-    MPU6050_UpdateState();
+// IMPORTANT: Call this once during your Tiva setup routine before the main loop!
+void FlightController_SensorsInit(void) {
+    I2C0_Init();       // Spin up the physical peripheral wires
+    MPU6050_Init();    // Wake up chip and set the 20Hz vibration filter
     
-    // 2. Feed the freshly updated drone state into Lauszus's Kalman math
-    g_droneState.roll = Kalman_getAngle(&kalmanRoll, g_droneState.accRoll, g_droneState.gyroRateX, dt);
-    
-    g_droneState.pitch = Kalman_getAngle(&kalmanPitch, g_droneState.accPitch, -g_droneState.gyroRateY, dt);
-    
-    // Now g_droneState.roll and g_droneState.pitch are perfectly clean 
-    // and ready to be compared against your XBee Xbox commands!
+    Kalman_init(&kalmanRoll);
+    Kalman_init(&kalmanPitch);
 }
