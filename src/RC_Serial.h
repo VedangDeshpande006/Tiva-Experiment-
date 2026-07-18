@@ -19,10 +19,14 @@ typedef struct {
 // Global accessible command state
 extern volatile RC_Commands_t g_rcCommands;
 extern volatile bool g_newRCDataAvailable;
+extern volatile uint32_t g_lastPacketTimeMs;
+extern volatile uint32_t g_systemTimeMs; // millisecond counter, driven by SysTick
 
 // Core functions
 void RC_Serial_Init(void);
 void UART1_IntHandler(void);
+void SysTick_TimeBase_Init(void);   // call once from main() before the control loop
+void SysTickIntHandler(void);       // register this as the SysTick ISR
 bool RC_Is_Connection_Safe(uint32_t currentSystemTimeMs);
 
 #endif /* _RC_SERIAL_H_ */
