@@ -1,37 +1,19 @@
-#include <math.h>
+#include "FlightState.h"
 #include "MPU6050.h"
 #include "Kalman.h"
 
-// Define Kalman Structures for Pitch and Roll
 Kalman_t kalmanRoll;
 Kalman_t kalmanPitch;
 
 void FlightController_SensorProcess(float dt) {
-    int16_t ax_raw, ay_raw, az_raw;
-    int16_t gx_raw, gy_raw, gz_raw;
+    // 1. Tell the sensor driver to update the global drone state
+    MPU6050_UpdateState();
     
-    // 1. Pull current hardware data packets
-    MPU6050_ReadRaw(&ax_raw, &ay_raw, &az_raw, &gx_raw, &gy_raw, &gz_raw);
+    // 2. Feed the freshly updated drone state into Lauszus's Kalman math
+    g_droneState.roll = Kalman_getAngle(&kalmanRoll, g_droneState.accRoll, g_droneState.gyroRateX, dt);
     
-    // 2. Convert to real physical scales
-    float ax = (float)ax_raw / ACCEL_SCALE;
-    float ay = (float)ay_raw / ACCEL_SCALE;
-    float az = (float)az_raw / ACCEL_SCALE;
+    g_droneState.pitch = Kalman_getAngle(&kalmanPitch, g_droneState.accPitch, -g_droneState.gyroRateY, dt);
     
-    // Convert Gyro to degrees per second (deg/s)
-    float gyroXRate = (float)gx_raw / GYRO_SCALE;
-    float gyroYRate = (float)gy_raw / GYRO_SCALE;
-    
-    // 3. Compute pitch and roll directly from raw acceleration geometry
-    // atan2 outputs radians, multiplying by 57.29578f converts to degrees
-    float accRoll  = atan2f(ay, az) * 57.29578f;
-    float accPitch = atan2f(-ax, sqrtf(ay * ay + az * az)) * 57.29578f;
-    
-    // 4. Run the data state step through the Kalman Filter
-    // Invert the pitch rate to remain consistent with aircraft principle tracking
-    float cleanRoll  = Kalman_getAngle(&kalmanRoll, accRoll, gyroXRate, dt);
-    float cleanPitch = Kalman_getAngle(&kalmanPitch, accPitch, -gyroYRate, dt);
-    
-    // cleanRoll and cleanPitch are now lag-free, perfectly stable target coordinates 
-    // ready to be fed directly into your PID error calculations!
+    // Now g_droneState.roll and g_droneState.pitch are perfectly clean 
+    // and ready to be compared against your XBee Xbox commands!
 }
