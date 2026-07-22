@@ -1,63 +1,361 @@
-
+Your documentation is already well organized. Below is a more formal, technical version suitable for a **college project report**, **mini-project submission**, or **IEEE-style documentation**.
 
 ---
 
-# Project Documentation: Autonomous Quadcopter Control Platform
+# **Autonomous Quadcopter Control Platform Using ARM Cortex-M4**
 
 ## I. Aim
 
-To design, implement, and validate a custom, high-refresh-rate ($250\text{ Hz}$) digital flight control system using the ARM Cortex-M4 architecture on an F450 quadcopter frame. The system eliminates traditional analog hobby RC receiver interfaces by deploying an end-to-end digital telemetry link (XBee S2C) to stream structured pilot commands from a laptop-tethered Xbox controller. The platform integrates a multi-sensor array ($\text{I}^2\text{C}$ IMU and UART GPS) into a decoupled software architecture, applying advanced noise filtering and cascaded PID loops to achieve stable, deterministic manual flight control alongside telemetry-backed localization groundwork.
+The objective of this project is to design, develop, and validate a custom high-performance digital flight controller for an F450 quadcopter using the **Texas Instruments TM4C123G (ARM Cortex-M4F)** microcontroller. The controller operates at a deterministic refresh frequency of **250 Hz**, enabling real-time attitude stabilization through cascaded PID control.
+
+Unlike conventional hobby drones that rely on analog PPM/SBUS radio receivers, this platform employs a completely digital telemetry architecture using **XBee S2C wireless modules**, allowing structured binary command packets generated from an Xbox controller connected to a laptop. The system integrates multiple onboard sensors—including an IMU, magnetometer, barometer, and GPS—to provide accurate state estimation and establish a scalable foundation for future autonomous navigation.
 
 ---
 
-## II. Apparatus & Hardware Architecture
+# II. Hardware Architecture
 
-| Hardware Component | Functional Specification | System Interface / Protocol |
-| --- | --- | --- |
-| **Tiva C Series TM4C123G** | 32-bit ARM Cortex-M4F MCU operating at $80\text{ MHz}$. Acts as the central computing unit running real-time deterministic loops. | **Master Microcontroller** |
-| **GY-87 10DOF Sensor Module** | Integrates an **MPU6050** (6-axis Accel/Gyro), an **HMC5883L** (Magnetometer), and a **BMP180** (Barometer). | Digital $\text{I}^2\text{C}$ Bus (`I2C0` on `PB2`/`PB3`) |
-| **uBlox NEO-M8N GPS Module** | High-precision global positioning receiver providing geospatial coordinates and ground speed data. | Secondary Serial Bus (`UART` connection) |
-| **XBee S2C Modules (x2)** | 2.4 GHz wireless transceivers providing a high-throughput, transparent digital serial telemetry bridge. | High-Speed Serial (`UART1` on `PB0`/`PB1`) |
-| **2200mAh LiPo Battery** | 3S/4S Lithium-Polymer power source fitted with a high-current **XT60 connector** for reliable power delivery. | Central Power Distribution Board |
-| **A2212 Brushless Motors (x4)** | Outrunner BLDC motors providing physical thrust vectors across an X-configuration layout. | 3-Phase AC from ESCs |
-| **SimonK 30A ESCs (x4)** | Electronic Speed Controllers flashed with high-refresh SimonK firmware for minimal signal latency. | $400\text{ Hz}$ Hardware PWM Channels |
-| **F450 Frame & Xbox Controller** | Glass-fiber 450mm structural airframe and the physical ground control station user interface. | Physical Body & USB-to-PC Link |
+| Component                          | Specification                                                                | Interface                |
+| ---------------------------------- | ---------------------------------------------------------------------------- | ------------------------ |
+| **TM4C123GH6PM (Tiva C Series)**   | 32-bit ARM Cortex-M4F, 80 MHz, Floating Point Unit                           | Main Flight Controller   |
+| **GY-87 Sensor Module**            | MPU6050 (Accelerometer + Gyroscope), HMC5883L Magnetometer, BMP180 Barometer | I²C0                     |
+| **u-Blox NEO-M8N GPS**             | High Precision GNSS Receiver                                                 | UART                     |
+| **XBee S2C (2 Units)**             | 2.4 GHz Wireless Serial Telemetry                                            | UART1                    |
+| **2200 mAh Li-Po Battery (3S/4S)** | Primary Power Source with XT60 Connector                                     | Power Distribution Board |
+| **A2212 Brushless Motors (×4)**    | Outrunner BLDC Motors                                                        | ESC Driven               |
+| **SimonK 30A ESC (×4)**            | High Refresh Electronic Speed Controllers                                    | PWM (400 Hz)             |
+| **F450 Quadcopter Frame**          | 450 mm Glass Fiber Frame                                                     | Mechanical Structure     |
+| **Xbox Controller**                | Pilot Input Device                                                           | USB to Laptop            |
 
 ---
 
-## III. Project Flow (Phase-by-Phase Roadmap)
+# III. System Architecture
 
 ```
-[ Phase 1: Sensors ] ──► [ Phase 2: Comm & Failsafe ] ──► [ Phase 3: Master 250Hz Loop ]
-                                                                      │
-[ Conclusion & Validation ] ◄── [ Phase 5: Motor Mixer/PWM ] ◄── [ Phase 4: Cascaded PID ]
-
+          Xbox Controller
+                 │
+                 ▼
+            Laptop Application
+                 │
+         Binary Control Packets
+                 │
+          XBee S2C Transmitter
+                 │
+          Wireless Telemetry
+                 │
+          XBee S2C Receiver
+                 │
+          TM4C123 Flight Controller
+                 │
+      ┌──────────┴───────────┐
+      │                      │
+      ▼                      ▼
+ IMU + Sensors           GPS Module
+      │                      │
+      └──────────┬───────────┘
+                 ▼
+        State Estimation
+                 │
+          Cascaded PID
+                 │
+           Motor Mixer
+                 │
+          PWM Generation
+                 │
+        SimonK ESC (×4)
+                 │
+          Brushless Motors
 ```
-
-### Phase 1: Sensor Interfacing & Decoupling (Completed)
-
-Configure the low-level `I2C0` hardware driver to establish stable burst-reads from the MPU6050. Strip raw data out of heavy libraries and pipe them into a clean, standalone `FlightState_t` structure, decoupling the raw sensor hardware from the processing filters.
-
-### Phase 2: Wireless Communication & Failsafe (Completed)
-
-Establish a high-speed (115200 baud) non-blocking serial parser on `UART1`. Define a rigid 10-byte binary packet structure (Header + Payload + Checksum) to stream Xbox controller commands from the laptop. Integrate a hardware/software failsafe that completely cuts throttle and disarms the system if the wireless XBee link drops for more than 500ms.
-
-### Phase 3: Synchronous Master Loop (Next Step)
-
-Implement a hardware timer module configured to fire an interrupt exactly every 4ms ($250\text{ Hz}$). This loop acts as the heartbeat of the drone, ensuring that sensor reads, orientation calculation, and PID execution happen with absolute temporal determinism.
-
-### Phase 4: Cascaded PID Attitude Control
-
-Develop dual-layer (Cascaded) PID control loops. The outer loop calculates the desired *angle* error (from the joystick), while the inner loop corrects the *angular rate of change* (from the gyroscope), processing adjustments rapidly to combat wind and structural instability.
-
-### Phase 5: Actuation, PWM, & Mixing
-
-Map the outputs of the PID controllers through an X-configuration motor mixing matrix. Translate these values into four independent hardware PWM signals sent to the SimonK ESCs at a high refresh rate to physically adjust motor speeds.
 
 ---
 
-## IV. Conclusion
+# IV. Software Development Roadmap
 
-The implementation of this flight controller successfully demonstrates that an ARM Cortex-M4 microcontroller can reliably execute real-time, deterministic flight stability routines using custom firmware structures. By eliminating analog PPM radio systems in favor of a structured, digital XBee binary protocol, the platform drastically reduces the hardware footprint while laying down solid safety framework via real-time checksums and communication timeouts.
+## Phase 1 – Sensor Interfacing (Completed)
 
-Integrating a dedicated power system (2200mAh XT60 LiPo) alongside modular components like the A2212 motors and the NEO-M8N GPS guarantees that the system is not only structurally viable for steady indoor/outdoor flight, but also architecturally prepared for future autonomous navigation and waypoint-following upgrades.
+### Objective
+
+Establish reliable communication with onboard sensors and isolate hardware drivers from flight algorithms.
+
+### Tasks
+
+* Configure I²C0 peripheral.
+* Read raw MPU6050 accelerometer and gyroscope values.
+* Interface BMP180 barometer.
+* Interface HMC5883L magnetometer.
+* Store sensor values inside a centralized FlightState structure.
+* Separate hardware abstraction layer from application logic.
+
+### Output
+
+A clean software architecture where every sensor updates a common system state without tightly coupling application logic to hardware drivers.
+
+---
+
+## Phase 2 – Wireless Communication and Failsafe (Completed)
+
+### Objective
+
+Replace conventional RC receivers with a digital communication system.
+
+### Features
+
+* UART communication at **115200 baud**
+* Transparent XBee wireless link
+* Binary packet parser
+* Xbox joystick command decoding
+* Checksum verification
+* Communication timeout detection
+
+### Binary Packet
+
+| Byte | Description    |
+| ---- | -------------- |
+| 0    | Header         |
+| 1    | Roll           |
+| 2    | Pitch          |
+| 3    | Throttle       |
+| 4    | Yaw            |
+| 5–8  | Auxiliary Data |
+| 9    | Checksum       |
+
+### Failsafe Logic
+
+If no valid packet is received for **500 milliseconds**:
+
+* Immediately set throttle to zero.
+* Disable motor outputs.
+* Reset PID integrators.
+* Wait until communication resumes.
+
+---
+
+## Phase 3 – Deterministic Flight Loop (In Progress)
+
+### Objective
+
+Implement a fixed-frequency real-time scheduler.
+
+### Method
+
+A hardware timer generates an interrupt every
+
+[
+T=\frac{1}{250}=4\text{ ms}
+]
+
+Each interrupt executes the complete flight control cycle.
+
+### Execution Order
+
+```
+Timer Interrupt
+
+↓
+
+Read Sensors
+
+↓
+
+Estimate Orientation
+
+↓
+
+Receive Wireless Commands
+
+↓
+
+Execute PID
+
+↓
+
+Motor Mixing
+
+↓
+
+Update PWM Outputs
+```
+
+Using a hardware timer guarantees deterministic execution regardless of processing load.
+
+---
+
+## Phase 4 – Cascaded PID Attitude Control
+
+### Objective
+
+Maintain stable quadcopter orientation under disturbances.
+
+### Outer Loop
+
+Computes desired angle error.
+
+```
+Desired Angle
+
+↓
+
+Angle Error
+
+↓
+
+Desired Angular Velocity
+```
+
+### Inner Loop
+
+Uses gyroscope feedback.
+
+```
+Desired Rate
+
+↓
+
+Rate Error
+
+↓
+
+PID Controller
+
+↓
+
+Motor Correction
+```
+
+### Advantages
+
+* Faster response
+* Better disturbance rejection
+* Improved hover stability
+* Reduced oscillations
+
+---
+
+# V. Sensor Fusion
+
+The quadcopter combines information from multiple sensors.
+
+### MPU6050
+
+Provides
+
+* Roll rate
+* Pitch rate
+* Linear acceleration
+
+### HMC5883L
+
+Provides
+
+* Heading
+* Compass direction
+
+### BMP180
+
+Provides
+
+* Atmospheric pressure
+* Relative altitude
+
+### NEO-M8N
+
+Provides
+
+* Latitude
+* Longitude
+* Ground speed
+* UTC time
+
+These measurements are combined to estimate the vehicle's complete state.
+
+---
+
+# VI. Motor Mixing
+
+For an X-configuration quadcopter:
+
+```
+Motor 1 = Throttle + Pitch + Roll − Yaw
+
+Motor 2 = Throttle + Pitch − Roll + Yaw
+
+Motor 3 = Throttle − Pitch − Roll − Yaw
+
+Motor 4 = Throttle − Pitch + Roll + Yaw
+```
+
+The resulting motor commands are constrained within allowable PWM limits before transmission to the ESCs.
+
+---
+
+# VII. PWM Generation
+
+Each SimonK ESC receives a hardware PWM signal.
+
+Typical pulse widths:
+
+| Command | Pulse Width  |
+| ------- | ------------ |
+| Minimum | 1000 µs      |
+| Hover   | 1450–1550 µs |
+| Maximum | 2000 µs      |
+
+PWM signals are generated using the TM4C123 hardware PWM module to ensure low jitter and precise timing.
+
+---
+
+# VIII. Safety Features
+
+The platform incorporates several protective mechanisms:
+
+* Wireless communication timeout
+* Packet checksum validation
+* Motor disarm on signal loss
+* PID integral wind-up prevention
+* PWM output saturation
+* Sensor initialization verification
+* Safe startup sequence
+* Controlled arming/disarming logic
+
+These features improve operational reliability and reduce the risk of uncontrolled flight.
+
+---
+
+# IX. Expected Performance
+
+| Parameter                   | Value                                    |
+| --------------------------- | ---------------------------------------- |
+| Flight Controller Frequency | 250 Hz                                   |
+| PWM Refresh Rate            | 400 Hz                                   |
+| MCU Clock                   | 80 MHz                                   |
+| Wireless Baud Rate          | 115200 bps                               |
+| Communication Timeout       | 500 ms                                   |
+| Number of Motors            | 4                                        |
+| Position Sensors            | GPS + Barometer                          |
+| Attitude Sensors            | Accelerometer + Gyroscope + Magnetometer |
+
+---
+
+# X. Future Scope
+
+The modular architecture allows straightforward expansion into autonomous flight capabilities, including:
+
+* GPS waypoint navigation
+* Autonomous takeoff and landing
+* Return-to-home (RTH)
+* Altitude hold
+* Position hold
+* Loiter mode
+* Autonomous mission planning
+* Obstacle detection and avoidance
+* MAVLink telemetry integration
+* Ground Control Station (GCS) support
+* Companion computer integration (e.g., Raspberry Pi)
+* Vision-based navigation using cameras and computer vision
+
+---
+
+# XI. Conclusion
+
+This project demonstrates the successful development of a deterministic, high-frequency digital flight control platform based on the ARM Cortex-M4 architecture. By replacing traditional analog RC communication with a robust XBee-based binary telemetry protocol, the system achieves a simplified hardware architecture while maintaining reliable manual control and safety through checksum verification and communication failsafes.
+
+The modular software design, deterministic 250 Hz control loop, cascaded PID stabilization, and integrated sensor suite establish a scalable foundation for advanced autonomous flight functions. With support for GPS-based localization, real-time telemetry, and future navigation algorithms, the platform provides a robust framework for research, academic experimentation, and further development toward fully autonomous quadcopter operations.
