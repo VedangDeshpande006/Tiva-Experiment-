@@ -46,8 +46,8 @@ typedef struct {
 void GY87_Init(void);
 void GY87_UpdateState(GY87_State_t* state);
 
-// Low-level dependencies
-extern void I2C_WriteByte(uint8_t regAddr, uint8_t data);[cite: 7]
-extern void I2C_ReadBurst(uint8_t startRegAddr, uint8_t *buffer, uint32_t length);[cite: 7]
+// Low-level dependencies (in GY87.h)
+extern void I2C_WriteByte(uint8_t slaveAddr, uint8_t regAddr, uint8_t data);
+extern void I2C_ReadBurst(uint8_t slaveAddr, uint8_t startRegAddr, uint8_t *buffer, uint32_t length);
 
 #endif /* _GY87_H_ */
