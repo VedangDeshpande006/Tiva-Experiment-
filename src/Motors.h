@@ -1,9 +1,15 @@
-#ifndef _MOTORS_H_
-#define _MOTORS_H_
+#ifndef MOTORS_H_
+#define MOTORS_H_
 
 #include <stdint.h>
 
+// Initializes PWM on PB4, PB5, PB6, PB7 at 400Hz
 void Motors_Init(void);
-void Motors_SetPulse(uint16_t m1, uint16_t m2, uint16_t m3, uint16_t m4);
 
-#endif
+// Sets individual motor pulse widths in microseconds (1000us to 2000us)
+void Motors_SetWidths(uint16_t m1_us, uint16_t m2_us, uint16_t m3_us, uint16_t m4_us);
+
+// Arms the ESCs by sending the minimum throttle signal
+void Motors_Arm(void);
+
+#endif /* MOTORS_H_ */
