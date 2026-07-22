@@ -1,6 +1,4 @@
-Your documentation is already well organized. Below is a more formal, technical version suitable for a **college project report**, **mini-project submission**, or **IEEE-style documentation**.
 
----
 
 # **Autonomous Quadcopter Control Platform Using ARM Cortex-M4**
 
