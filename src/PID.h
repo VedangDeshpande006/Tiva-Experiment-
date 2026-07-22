@@ -3,84 +3,84 @@
 
 #include <stdbool.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 //==================================================
-// PID Controller Structure
+// PID CONTROLLER
 //==================================================
 typedef struct
 {
-    //------------------------------------------------
+    // -----------------------------
     // PID Gains
-    //------------------------------------------------
+    // -----------------------------
     float kp;
     float ki;
     float kd;
 
-    //------------------------------------------------
-    // Controller State
-    //------------------------------------------------
+    // -----------------------------
+    // State Variables
+    // -----------------------------
     float prevError;
-    float integrationStored;
+    float integral;
 
-    //------------------------------------------------
+    // -----------------------------
+    // Integral Limits (Anti-Windup)
+    // -----------------------------
+    float integralMin;
+    float integralMax;
+
+    // -----------------------------
     // Output Limits
-    //------------------------------------------------
-    float windupMax;
+    // -----------------------------
+    float outputMin;
     float outputMax;
 
 } PID_t;
 
 
 //==================================================
-// Public API
+// API
 //==================================================
 
 /**
- * @brief Initialize a PID controller.
+ * @brief Initialize PID controller.
  *
- * @param pid Pointer to PID object.
- * @param kp Proportional gain.
- * @param ki Integral gain.
- * @param kd Derivative gain.
- * @param windupMax Maximum integral term.
- * @param outputMax Maximum controller output.
+ * @param pid Pointer to PID object
+ * @param kp Proportional gain
+ * @param ki Integral gain
+ * @param kd Derivative gain
+ * @param integralMin Minimum integral accumulator
+ * @param integralMax Maximum integral accumulator
+ * @param outputMin Minimum controller output
+ * @param outputMax Maximum controller output
  */
 void PID_Init(PID_t *pid,
               float kp,
               float ki,
               float kd,
-              float windupMax,
+              float integralMin,
+              float integralMax,
+              float outputMin,
               float outputMax);
 
-
 /**
- * @brief Compute PID output.
+ * @brief Calculate PID output.
  *
- * @param pid Pointer to PID object.
- * @param setpoint Desired value.
- * @param currentPosition Measured value.
- * @param dt Loop time in seconds.
+ * @param pid Pointer to PID object
+ * @param setpoint Desired value
+ * @param measurement Current measured value
+ * @param dt Loop time (seconds)
  *
- * @return PID output.
+ * @return PID controller output
  */
 float PID_Compute(PID_t *pid,
                   float setpoint,
-                  float currentPosition,
+                  float measurement,
                   float dt);
 
-
 /**
- * @brief Reset PID internal state.
+ * @brief Reset integral and derivative history.
  *
- * @param pid Pointer to PID object.
+ * @param pid Pointer to PID object
  */
 void PID_Reset(PID_t *pid);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* PID_H */
