@@ -31,6 +31,7 @@ typedef struct
     int16_t my;
     int16_t mz;
 
+    // Magnetic heading (0 to 2π radians)
     float heading;
 
 } HMC5883L_Data_t;
@@ -56,15 +57,15 @@ typedef struct
 //==================================================
 
 /**
- * @brief Initializes MPU6050 and HMC5883L.
+ * @brief Initialize the MPU6050 and HMC5883L sensors.
  *
  * @return true  Initialization successful.
- * @return false Sensor not detected or I2C failure.
+ * @return false Sensor not detected or I2C communication failed.
  */
 bool GY87_Init(void);
 
 /**
- * @brief Reads all GY-87 sensors and updates the state structure.
+ * @brief Read all GY-87 sensors and update the state structure.
  *
  * @param state Pointer to GY87_State_t.
  */
