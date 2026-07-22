@@ -2,12 +2,11 @@
 #include <stdbool.h>
 #include "inc/hw_memmap.h"
 #include "driverlib/i2c.h"
-#include "MPU6050.h"
 
-// Write a single byte to an MPU6050 register
-void I2C_WriteByte(uint8_t regAddr, uint8_t data) {
+// Write a single byte to any I2C device register
+void I2C_WriteByte(uint8_t slaveAddr, uint8_t regAddr, uint8_t data) {
     // Set slave address for writing
-    I2CMasterSlaveAddrSet(I2C0_BASE, MPU6050_ADDRESS, false);
+    I2CMasterSlaveAddrSet(I2C0_BASE, slaveAddr, false);
     
     // Transmit register address
     I2CMasterDataPut(I2C0_BASE, regAddr);
@@ -20,16 +19,16 @@ void I2C_WriteByte(uint8_t regAddr, uint8_t data) {
     while(I2CMasterBusy(I2C0_BASE));
 }
 
-// Read multiple consecutive bytes from the sensor
-void I2C_ReadBurst(uint8_t startRegAddr, uint8_t *buffer, uint32_t length) {
-    // 1. Tell the MPU6050 which register we want to start reading from
-    I2CMasterSlaveAddrSet(I2C0_BASE, MPU6050_ADDRESS, false);
+// Read multiple consecutive bytes from any I2C device
+void I2C_ReadBurst(uint8_t slaveAddr, uint8_t startRegAddr, uint8_t *buffer, uint32_t length) {
+    // 1. Tell the device which register we want to start reading from
+    I2CMasterSlaveAddrSet(I2C0_BASE, slaveAddr, false);
     I2CMasterDataPut(I2C0_BASE, startRegAddr);
     I2CMasterControl(I2C0_BASE, I2C_MASTER_CMD_SINGLE_SEND);
     while(I2CMasterBusy(I2C0_BASE));
 
     // 2. Switch to read mode
-    I2CMasterSlaveAddrSet(I2C0_BASE, MPU6050_ADDRESS, true);
+    I2CMasterSlaveAddrSet(I2C0_BASE, slaveAddr, true);
 
     if (length == 1) {
         I2CMasterControl(I2C0_BASE, I2C_MASTER_CMD_SINGLE_RECEIVE);
