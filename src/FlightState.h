@@ -4,20 +4,16 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "GY87.h"
-
 //==================================================
-// ATTITUDE ESTIMATION
+// ATTITUDE STATE
 //==================================================
-
 typedef struct
 {
-    // Estimated Euler Angles (degrees)
     float roll;
     float pitch;
     float yaw;
 
-    // Sensor Calibration Offsets
+    // Sensor calibration offsets (raw LSB)
     float gyroBiasX;
     float gyroBiasY;
     float gyroBiasZ;
@@ -30,9 +26,8 @@ typedef struct
 
 
 //==================================================
-// PILOT COMMANDS
+// RC COMMAND SETPOINTS
 //==================================================
-
 typedef struct
 {
     float targetRoll;
@@ -47,7 +42,6 @@ typedef struct
 //==================================================
 // MOTOR OUTPUTS
 //==================================================
-
 typedef struct
 {
     uint16_t m1;
@@ -61,7 +55,6 @@ typedef struct
 //==================================================
 // FLIGHT MODES
 //==================================================
-
 typedef enum
 {
     SYSTEM_INIT = 0,
@@ -76,38 +69,25 @@ typedef enum
 //==================================================
 // COMPLETE FLIGHT STATE
 //==================================================
-
 typedef struct
 {
-    // Current System Mode
     SystemMode_t mode;
 
-    // Raw Sensor Data
-    GY87_State_t sensors;
-
-    // Estimated Attitude
     Attitude_t attitude;
 
-    // Pilot Commands
     Setpoint_t setpoint;
 
-    // Motor Outputs
     MotorMix_t motors;
 
 } FlightState_t;
 
 
 //==================================================
-// GLOBAL STATE
-//==================================================
-
-extern FlightState_t g_flightState;
-
-
-//==================================================
-// PUBLIC API
+// PUBLIC FUNCTIONS
 //==================================================
 
 void FlightState_Init(FlightState_t *state);
 
-#endif /* FLIGHTSTATE_H */
+bool FlightState_CalibrateSensors(FlightState_t *state);
+
+#endif
