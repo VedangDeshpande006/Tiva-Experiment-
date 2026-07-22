@@ -1,56 +1,34 @@
-#ifndef _CONFIG_H_
-#define _CONFIG_H_
+#ifndef CONFIG_H
+#define CONFIG_H
 
-#include <stdint.h>
-#include <stdbool.h>
-
-/******************************************************************************
- * 1. ESC & MOTOR CONFIGURATION
- * Flashed SimonK ESCs -> Disable OneShot125 to run high-speed standard PWM.
- * Layout follows X-configuration:
- * Motor 1: Bottom Right (CW) | Motor 2: Top Right (CCW)
- * Motor 3: Bottom Left  (CCW)| Motor 4: Top Left  (CW)
- *****************************************************************************/
-#define ONESHOT125          0       // Standard SimonK uses normal high-speed PWM
-#define PWM_FREQUENCY       400     // 400Hz update rate
-
-// Hardware PWM Pin Mappings (PWM0 Module, Generator 0 & 1)
-// Used by Motors.c
-// Motor 1: PB6 (M0PWM0)
-// Motor 2: PB7 (M0PWM1)
-// Motor 3: PB4 (M0PWM2)
-// Motor 4: PB5 (M0PWM3)
-
-/******************************************************************************
- * 2. SENSOR & I2C SETUP (GY-87 Module)
- * Uses Tiva I2C0: PB2 (SCL) and PB3 (SDA).
- *****************************************************************************/
-#define MPU6050_I2C_ADDRESS 0x68
+// ==========================================
+// I2C ADDRESSES
+// ==========================================
+#define MPU6050_I2C_ADDRESS  0x68
 #define HMC5883L_I2C_ADDRESS 0x1E
-#define BMP180_I2C_ADDRESS  0x77
-#define MPU6050_DLPF_CFG    4       // 20Hz bandwidth to reject frame vibrations
 
-/******************************************************************************
- * 3. RC RECEIVER THRESHOLDS (PPM/CPPM Input)
- *****************************************************************************/
-#define THROTTLE_MIN        1000    // Minimum pulse length (Idle)
-#define THROTTLE_MAX        2000    // Maximum pulse length (Full Power)
-#define MIN_CHECK           1100    // Rudder stick threshold to trigger arming/disarming
-#define MAX_CHECK           1900
+// ==========================================
+// GY-87 TUNING PARAMETERS
+// ==========================================
+// DLPF (Digital Low Pass Filter) - Set to ~42Hz bandwidth to filter frame vibrations
+#define MPU6050_DLPF_CFG     0x03 
 
-/******************************************************************************
- * 4. DEFAULT PID VALUES (Starting Points for F450 Frame)
- *****************************************************************************/
-#define PID_ROLL_P          1.0f
-#define PID_ROLL_I          0.0f
-#define PID_ROLL_D          0.0f
+// Gyro Config: Full Scale Range = ±2000 deg/s (Bit 3,4 = 11 -> 0x18)
+#define MPU6050_GYRO_FS_2000 0x18 
 
-#define PID_PITCH_P         1.0f
-#define PID_PITCH_I         0.0f
-#define PID_PITCH_D         0.0f
+// Accel Config: Full Scale Range = ±8g (Bit 3,4 = 10 -> 0x10)
+#define MPU6050_ACCEL_FS_8   0x10 
 
-#define PID_YAW_P           2.0f
-#define PID_YAW_I           0.0f
-#define PID_YAW_D           0.0f
+// Sample Rate Divider: 1kHz internal clock / (1 + 3) = 250Hz sample rate
+#define MPU6050_SMPLRT_250HZ 0x03 
 
-#endif /* _CONFIG_H_ */
+// ==========================================
+// SENSOR SCALING FACTORS
+// ==========================================
+// At ±8g, LSB sensitivity is 4096 LSB/g
+#define ACCEL_SCALE (1.0f / 4096.0f) 
+
+// At ±2000 deg/s, LSB sensitivity is 16.4 LSB/(deg/s)
+#define GYRO_SCALE  (1.0f / 16.4f)   
+
+#endif // CONFIG_H
