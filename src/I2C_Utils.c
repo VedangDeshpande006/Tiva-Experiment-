@@ -1,160 +1,151 @@
-#include "I2C_Utils.h"
+#ifndef I2C_UTILS_H
+#define I2C_UTILS_H
 
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "inc/hw_memmap.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#include "driverlib/sysctl.h"
-#include "driverlib/gpio.h"
-#include "driverlib/pin_map.h"
-#include "driverlib/i2c.h"
+//==================================================
+// I2C0 Hardware Configuration
+//==================================================
+//
+// Controller : I2C0
+// SCL        : PB2
+// SDA        : PB3
+// Bus Speed  : 100 kHz (Standard Mode)
+//
+// All slave addresses passed to these functions are
+// 7-bit addresses exactly as specified in device
+// datasheets.
+//
+// Example:
+// MPU6050  -> 0x68
+// HMC5883L -> 0x1E
+// BMP180   -> 0x77
+//
+//==================================================
 
-//======================================================
-// Initialize I2C0
-//======================================================
 
-void I2C0_Init(void)
+//==================================================
+// Driver Configuration
+//==================================================
+
+// Maximum polling iterations while waiting for an
+// I2C transfer to complete.
+//
+// This prevents software from hanging forever if a
+// sensor is disconnected or the bus becomes stuck.
+//
+// Increase this value if running at slower bus
+// speeds.
+#define I2C_TIMEOUT_COUNT      100000UL
+
+
+//==================================================
+// Driver Status Codes
+//==================================================
+
+typedef enum
 {
-    // Enable peripherals
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C0);
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+    I2C_STATUS_OK = 0,
 
-    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_I2C0));
-    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOB));
+    I2C_STATUS_TIMEOUT,
 
-    // Configure PB2=SCL PB3=SDA
-    GPIOPinConfigure(GPIO_PB2_I2C0SCL);
-    GPIOPinConfigure(GPIO_PB3_I2C0SDA);
+    I2C_STATUS_BUS_ERROR,
 
-    GPIOPinTypeI2CSCL(GPIO_PORTB_BASE, GPIO_PIN_2);
-    GPIOPinTypeI2C(GPIO_PORTB_BASE, GPIO_PIN_3);
+    I2C_STATUS_INVALID_PARAMETER
 
-    // Standard Mode (100kHz)
-    I2CMasterInitExpClk(I2C0_BASE,
-                        SysCtlClockGet(),
-                        false);
-}
+} I2C_Status_t;
 
-//======================================================
-// Write One Register
-//======================================================
 
+//==================================================
+// Global Driver Status
+//==================================================
+
+// Contains the result of the most recent I2C
+// transaction.
+//
+// This is intended for debugging and future UART
+// telemetry logging.
+//
+extern volatile I2C_Status_t g_i2cLastStatus;
+
+
+//==================================================
+// Public API
+//==================================================
+
+/**
+ * @brief Initialize I2C0 peripheral.
+ *
+ * Configures:
+ *      PB2 -> SCL
+ *      PB3 -> SDA
+ *
+ * Standard Mode (100 kHz)
+ */
+void I2C0_Init(void);
+
+
+/**
+ * @brief Write one byte to a slave register.
+ *
+ * @param slaveAddr
+ *      7-bit I2C slave address.
+ *
+ * @param regAddr
+ *      Register address.
+ *
+ * @param data
+ *      Data byte.
+ *
+ * @return true on success.
+ * @return false on timeout or bus error.
+ */
 bool I2C_WriteByte(uint8_t slaveAddr,
                    uint8_t regAddr,
-                   uint8_t data)
-{
-    // Send Register Address
-    I2CMasterSlaveAddrSet(I2C0_BASE, slaveAddr, false);
+                   uint8_t data);
 
-    I2CMasterDataPut(I2C0_BASE, regAddr);
 
-    I2CMasterControl(I2C0_BASE,
-                     I2C_MASTER_CMD_BURST_SEND_START);
-
-    while(I2CMasterBusy(I2C0_BASE));
-
-    if(I2CMasterErr(I2C0_BASE) != I2C_MASTER_ERR_NONE)
-        return false;
-
-    // Send Data
-    I2CMasterDataPut(I2C0_BASE, data);
-
-    I2CMasterControl(I2C0_BASE,
-                     I2C_MASTER_CMD_BURST_SEND_FINISH);
-
-    while(I2CMasterBusy(I2C0_BASE));
-
-    if(I2CMasterErr(I2C0_BASE) != I2C_MASTER_ERR_NONE)
-        return false;
-
-    return true;
-}
-
-//======================================================
-// Read Multiple Bytes
-//======================================================
-
+/**
+ * @brief Read consecutive bytes from a slave.
+ *
+ * Uses repeated-start transaction.
+ *
+ * @param slaveAddr
+ *      7-bit slave address.
+ *
+ * @param startRegAddr
+ *      First register.
+ *
+ * @param buffer
+ *      Destination buffer.
+ *
+ * @param length
+ *      Number of bytes.
+ *
+ *      length == 0 returns false.
+ *
+ * @return true on success.
+ * @return false on timeout or bus error.
+ */
 bool I2C_ReadBurst(uint8_t slaveAddr,
                    uint8_t startRegAddr,
                    uint8_t *buffer,
-                   uint32_t length)
-{
-    if(buffer == NULL || length == 0)
-        return false;
+                   uint32_t length);
 
-    // Send Register Address
-    I2CMasterSlaveAddrSet(I2C0_BASE,
-                          slaveAddr,
-                          false);
 
-    I2CMasterDataPut(I2C0_BASE,
-                     startRegAddr);
+/**
+ * @brief Returns last driver status.
+ */
+I2C_Status_t I2C_GetLastStatus(void);
 
-    I2CMasterControl(I2C0_BASE,
-                     I2C_MASTER_CMD_SINGLE_SEND);
 
-    while(I2CMasterBusy(I2C0_BASE));
-
-    if(I2CMasterErr(I2C0_BASE) != I2C_MASTER_ERR_NONE)
-        return false;
-
-    // Restart in Read Mode
-    I2CMasterSlaveAddrSet(I2C0_BASE,
-                          slaveAddr,
-                          true);
-
-    // Single Byte Read
-    if(length == 1)
-    {
-        I2CMasterControl(I2C0_BASE,
-                         I2C_MASTER_CMD_SINGLE_RECEIVE);
-
-        while(I2CMasterBusy(I2C0_BASE));
-
-        if(I2CMasterErr(I2C0_BASE) != I2C_MASTER_ERR_NONE)
-            return false;
-
-        buffer[0] = I2CMasterDataGet(I2C0_BASE);
-
-        return true;
-    }
-
-    // First Byte
-    I2CMasterControl(I2C0_BASE,
-                     I2C_MASTER_CMD_BURST_RECEIVE_START);
-
-    while(I2CMasterBusy(I2C0_BASE));
-
-    if(I2CMasterErr(I2C0_BASE) != I2C_MASTER_ERR_NONE)
-        return false;
-
-    buffer[0] = I2CMasterDataGet(I2C0_BASE);
-
-    // Middle Bytes
-    for(uint32_t i = 1; i < (length - 1); i++)
-    {
-        I2CMasterControl(I2C0_BASE,
-                         I2C_MASTER_CMD_BURST_RECEIVE_CONT);
-
-        while(I2CMasterBusy(I2C0_BASE));
-
-        if(I2CMasterErr(I2C0_BASE) != I2C_MASTER_ERR_NONE)
-            return false;
-
-        buffer[i] = I2CMasterDataGet(I2C0_BASE);
-    }
-
-    // Last Byte
-    I2CMasterControl(I2C0_BASE,
-                     I2C_MASTER_CMD_BURST_RECEIVE_FINISH);
-
-    while(I2CMasterBusy(I2C0_BASE));
-
-    if(I2CMasterErr(I2C0_BASE) != I2C_MASTER_ERR_NONE)
-        return false;
-
-    buffer[length - 1] = I2CMasterDataGet(I2C0_BASE);
-
-    return true;
+#ifdef __cplusplus
 }
+#endif
+
+#endif /* I2C_UTILS_H */
