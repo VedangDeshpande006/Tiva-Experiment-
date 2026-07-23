@@ -22,7 +22,13 @@ volatile I2C_Status_t g_i2cLastStatus = I2C_STATUS_OK;
 // Private Helper Functions
 //==================================================
 
-static bool I2C_WaitUntilComplete(void)
+/**
+ * @brief Wait until the current I2C transaction completes.
+ *
+ * @return true if transaction completed successfully.
+ * @return false on timeout or bus error.
+ */
+static bool I2C_WaitWhileBusy(void)
 {
     uint32_t timeout = I2C_TIMEOUT_COUNT;
 
@@ -43,16 +49,6 @@ static bool I2C_WaitUntilComplete(void)
 
     g_i2cLastStatus = I2C_STATUS_OK;
     return true;
-}
-
-
-//==================================================
-// Public Status Function
-//==================================================
-
-I2C_Status_t I2C_GetLastStatus(void)
-{
-    return g_i2cLastStatus;
 }
 
 
@@ -97,38 +93,31 @@ bool I2C_WriteByte(uint8_t slaveAddr,
                    uint8_t regAddr,
                    uint8_t data)
 {
-    I2CMasterSlaveAddrSet(I2C0_BASE,
-                          slaveAddr,
-                          false);
+    I2CMasterSlaveAddrSet(I2C0_BASE, slaveAddr, false);
 
-    I2CMasterDataPut(I2C0_BASE,
-                     regAddr);
+    I2CMasterDataPut(I2C0_BASE, regAddr);
 
-    I2CMasterControl(I2C0_BASE,
-                     I2C_MASTER_CMD_BURST_SEND_START);
+    I2CMasterControl(
+        I2C0_BASE,
+        I2C_MASTER_CMD_BURST_SEND_START);
 
-    if (!I2C_WaitUntilComplete())
+    if (!I2C_WaitWhileBusy())
     {
         return false;
     }
 
-    I2CMasterDataPut(I2C0_BASE,
-                     data);
+    I2CMasterDataPut(I2C0_BASE, data);
 
-    I2CMasterControl(I2C0_BASE,
-                     I2C_MASTER_CMD_BURST_SEND_FINISH);
+    I2CMasterControl(
+        I2C0_BASE,
+        I2C_MASTER_CMD_BURST_SEND_FINISH);
 
-    if (!I2C_WaitUntilComplete())
-    {
-        return false;
-    }
-
-    return true;
+    return I2C_WaitWhileBusy();
 }
 
 
 //==================================================
-// Read Consecutive Registers
+// Read Multiple Registers
 //==================================================
 
 bool I2C_ReadBurst(uint8_t slaveAddr,
@@ -156,7 +145,7 @@ bool I2C_ReadBurst(uint8_t slaveAddr,
     I2CMasterControl(I2C0_BASE,
                      I2C_MASTER_CMD_SINGLE_SEND);
 
-    if (!I2C_WaitUntilComplete())
+    if (!I2C_WaitWhileBusy())
     {
         return false;
     }
@@ -178,13 +167,12 @@ bool I2C_ReadBurst(uint8_t slaveAddr,
         I2CMasterControl(I2C0_BASE,
                          I2C_MASTER_CMD_SINGLE_RECEIVE);
 
-        if (!I2C_WaitUntilComplete())
+        if (!I2C_WaitWhileBusy())
         {
             return false;
         }
 
         buffer[0] = I2CMasterDataGet(I2C0_BASE);
-
         return true;
     }
 
@@ -195,7 +183,7 @@ bool I2C_ReadBurst(uint8_t slaveAddr,
     I2CMasterControl(I2C0_BASE,
                      I2C_MASTER_CMD_BURST_RECEIVE_START);
 
-    if (!I2C_WaitUntilComplete())
+    if (!I2C_WaitWhileBusy())
     {
         return false;
     }
@@ -211,7 +199,7 @@ bool I2C_ReadBurst(uint8_t slaveAddr,
         I2CMasterControl(I2C0_BASE,
                          I2C_MASTER_CMD_BURST_RECEIVE_CONT);
 
-        if (!I2C_WaitUntilComplete())
+        if (!I2C_WaitWhileBusy())
         {
             return false;
         }
@@ -226,7 +214,7 @@ bool I2C_ReadBurst(uint8_t slaveAddr,
     I2CMasterControl(I2C0_BASE,
                      I2C_MASTER_CMD_BURST_RECEIVE_FINISH);
 
-    if (!I2C_WaitUntilComplete())
+    if (!I2C_WaitWhileBusy())
     {
         return false;
     }
@@ -234,4 +222,14 @@ bool I2C_ReadBurst(uint8_t slaveAddr,
     buffer[length - 1U] = I2CMasterDataGet(I2C0_BASE);
 
     return true;
+}
+
+
+//==================================================
+// Driver Status
+//==================================================
+
+I2C_Status_t I2C_GetLastStatus(void)
+{
+    return g_i2cLastStatus;
 }
