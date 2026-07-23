@@ -17,14 +17,14 @@ extern "C" {
 // SDA        : PB3
 // Bus Speed  : 100 kHz (Standard Mode)
 //
-// All slave addresses passed to these functions are
-// 7-bit addresses exactly as specified in device
+// All slave addresses passed to this driver are
+// 7-bit addresses exactly as specified in sensor
 // datasheets.
 //
-// Example:
-// MPU6050  -> 0x68
-// HMC5883L -> 0x1E
-// BMP180   -> 0x77
+// Current Sensors:
+//     MPU6050  -> 0x68
+//     HMC5883L -> 0x1E
+//     BMP180   -> 0x77
 //
 //==================================================
 
@@ -36,11 +36,8 @@ extern "C" {
 // Maximum polling iterations while waiting for an
 // I2C transfer to complete.
 //
-// This prevents software from hanging forever if a
-// sensor is disconnected or the bus becomes stuck.
-//
-// Increase this value if running at slower bus
-// speeds.
+// Prevents the firmware from blocking forever if an
+// I2C slave is disconnected or the bus becomes stuck.
 #define I2C_TIMEOUT_COUNT      100000UL
 
 
@@ -51,11 +48,8 @@ extern "C" {
 typedef enum
 {
     I2C_STATUS_OK = 0,
-
     I2C_STATUS_TIMEOUT,
-
     I2C_STATUS_BUS_ERROR,
-
     I2C_STATUS_INVALID_PARAMETER
 
 } I2C_Status_t;
@@ -66,11 +60,8 @@ typedef enum
 //==================================================
 
 // Contains the result of the most recent I2C
-// transaction.
-//
-// This is intended for debugging and future UART
+// transaction. Intended for debugging and future
 // telemetry logging.
-//
 extern volatile I2C_Status_t g_i2cLastStatus;
 
 
@@ -85,7 +76,8 @@ extern volatile I2C_Status_t g_i2cLastStatus;
  *      PB2 -> SCL
  *      PB3 -> SDA
  *
- * Standard Mode (100 kHz)
+ * Bus Speed:
+ *      100 kHz Standard Mode
  */
 void I2C0_Init(void);
 
@@ -111,23 +103,23 @@ bool I2C_WriteByte(uint8_t slaveAddr,
 
 
 /**
- * @brief Read consecutive bytes from a slave.
+ * @brief Read multiple consecutive registers.
  *
- * Uses repeated-start transaction.
+ * Uses a repeated-start transaction.
  *
  * @param slaveAddr
  *      7-bit slave address.
  *
  * @param startRegAddr
- *      First register.
+ *      Starting register.
  *
  * @param buffer
  *      Destination buffer.
  *
  * @param length
- *      Number of bytes.
+ *      Number of bytes to read.
  *
- *      length == 0 returns false.
+ *      Passing length == 0 returns false.
  *
  * @return true on success.
  * @return false on timeout or bus error.
@@ -139,10 +131,37 @@ bool I2C_ReadBurst(uint8_t slaveAddr,
 
 
 /**
- * @brief Returns last driver status.
+ * @brief Returns the status of the most recent
+ *        I2C transaction.
  */
 I2C_Status_t I2C_GetLastStatus(void);
 
+
+//==================================================
+// Future Driver Expansion
+//==================================================
+//
+// A multi-byte write routine (I2C_WriteBurst) is
+// intentionally NOT implemented in Phase 1 because
+// none of the current onboard devices require burst
+// write operations.
+//
+// Current devices (MPU6050, HMC5883L and BMP180)
+// are fully configured using single-register writes.
+//
+// If future hardware (EEPROM, OLED display,
+// FRAM, etc.) requires consecutive register writes,
+// implement:
+//
+// bool I2C_WriteBurst(uint8_t slaveAddr,
+//                     uint8_t startRegAddr,
+//                     const uint8_t *buffer,
+//                     uint32_t length);
+//
+// together with timeout and error handling consistent
+// with the existing driver.
+//
+//==================================================
 
 #ifdef __cplusplus
 }
