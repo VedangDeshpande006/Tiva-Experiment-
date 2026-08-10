@@ -3,83 +3,110 @@
 
 #include <stddef.h>
 
-//==================================================
-// Initialize Kalman Filter
-//==================================================
+/*==================================================
+ * Initialize Kalman Filter
+ *==================================================*/
 void Kalman_Init(Kalman_t *filter)
 {
     if (filter == NULL)
+    {
         return;
+    }
 
-    //------------------------------------------------
-    // Load tuning parameters
-    //------------------------------------------------
+    /*------------------------------------------------
+     * Load tuning parameters
+     *------------------------------------------------*/
     filter->Q_angle   = KALMAN_Q_ANGLE;
     filter->Q_bias    = KALMAN_Q_BIAS;
     filter->R_measure = KALMAN_R_MEASURE;
 
-    //------------------------------------------------
-    // Initial state
-    //------------------------------------------------
+    /*------------------------------------------------
+     * Initial state
+     *------------------------------------------------*/
     filter->angle = 0.0f;
     filter->bias  = 0.0f;
     filter->rate  = 0.0f;
 
-    //------------------------------------------------
-    // Covariance matrix
-    //------------------------------------------------
+    /*------------------------------------------------
+     * Covariance matrix
+     *------------------------------------------------*/
     filter->P[0][0] = 0.0f;
     filter->P[0][1] = 0.0f;
     filter->P[1][0] = 0.0f;
     filter->P[1][1] = 0.0f;
 }
 
-
-//==================================================
-// Kalman Filter Update
-//==================================================
+/*==================================================
+ * Kalman Filter Update
+ *==================================================*/
 float Kalman_GetAngle(Kalman_t *filter,
                       float newAngle,
                       float newRate,
                       float dt)
 {
     if (filter == NULL)
+    {
         return 0.0f;
+    }
 
-    //------------------------------------------------
-    // Prediction Step
-    //------------------------------------------------
+    /*------------------------------------------------
+     * Validate timestep
+     *------------------------------------------------*/
+    if (dt <= 0.0f)
+    {
+        return filter->angle;
+    }
 
+    /*------------------------------------------------
+     * Prediction Step
+     *------------------------------------------------*/
+
+    /* Remove estimated gyro bias */
     filter->rate = newRate - filter->bias;
 
+    /* Predict angle using gyro */
     filter->angle += dt * filter->rate;
 
-    filter->P[0][0] += dt * (dt * filter->P[1][1]
-                           - filter->P[0][1]
-                           - filter->P[1][0]
-                           + filter->Q_angle);
+    /* Predict covariance */
+    filter->P[0][0] +=
+        dt * (dt * filter->P[1][1]
+              - filter->P[0][1]
+              - filter->P[1][0]
+              + filter->Q_angle);
 
     filter->P[0][1] -= dt * filter->P[1][1];
+
     filter->P[1][0] -= dt * filter->P[1][1];
+
     filter->P[1][1] += filter->Q_bias * dt;
 
-    //------------------------------------------------
-    // Measurement Update
-    //------------------------------------------------
+    /*------------------------------------------------
+     * Measurement Update
+     *------------------------------------------------*/
 
     float S = filter->P[0][0] + filter->R_measure;
 
+    /* Prevent division by zero */
+    if (S <= 0.0f)
+    {
+        return filter->angle;
+    }
+
+    /* Kalman gain */
     float K0 = filter->P[0][0] / S;
     float K1 = filter->P[1][0] / S;
 
+    /* Difference between accelerometer angle
+     * and predicted gyro angle */
     float innovation = newAngle - filter->angle;
 
+    /* Correct angle and gyro bias */
     filter->angle += K0 * innovation;
     filter->bias  += K1 * innovation;
 
-    //------------------------------------------------
-    // Update Covariance Matrix
-    //------------------------------------------------
+    /*------------------------------------------------
+     * Update Covariance Matrix
+     *------------------------------------------------*/
 
     float P00 = filter->P[0][0];
     float P01 = filter->P[0][1];
