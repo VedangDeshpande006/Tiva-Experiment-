@@ -1,70 +1,90 @@
-#ifndef KALMAN_H
-#define KALMAN_H
+should i commit this code 
 
-#include <stdint.h>
+\#ifndef KALMAN\_H
+\#define KALMAN\_H
 
-#ifdef __cplusplus
+\#include \<stdint.h>
+\#include \<stdbool.h>
+
+\#ifdef \_\_cplusplus
 extern "C" {
-#endif
+\#endif
 
-//==================================================
-// KALMAN FILTER STATE
-//==================================================
+/\*=============================================================================
+
+- KALMAN FILTER STATE
+  *===========================================================================*/
+
 typedef struct
 {
-    // Process noise variance for accelerometer
-    float Q_angle;
+/\* Process noise variance for accelerometer angle \*/
+float Q\_angle;
 
-    // Process noise variance for gyro bias
-    float Q_bias;
+```
+/* Process noise variance for gyro bias */
+float Q_bias;
 
-    // Measurement noise variance
-    float R_measure;
+/* Measurement noise variance */
+float R_measure;
 
-    // Estimated angle
-    float angle;
+/* Estimated angle (degrees) */
+float angle;
 
-    // Estimated gyro bias
-    float bias;
+/* Estimated gyro bias (degrees/sec) */
+float bias;
 
-    // Unbiased gyro rate
-    float rate;
+/* Unbiased gyro rate (degrees/sec) */
+float rate;
 
-    // Error covariance matrix
-    float P[2][2];
+/* Error covariance matrix */
+float P[2][2];
+```
 
-} Kalman_t;
+} Kalman\_t;
 
+/\*=============================================================================
 
-//==================================================
-// PUBLIC API
-//==================================================
+- PUBLIC API
+  *===========================================================================*/
 
-/**
- * @brief Initializes the Kalman filter structure.
- *
- * @param filter Pointer to Kalman filter instance.
- */
-void Kalman_Init(Kalman_t *filter);
+/\*\*
 
+- @brief Initialize a Kalman filter instance.
+-
+- Resets the estimated angle, gyro bias, rate and covariance matrix.
+-
+- @param filter Pointer to Kalman filter instance.
+  \*/
+  void Kalman\_Init(Kalman\_t \*filter);
 
-/**
- * @brief Updates the Kalman filter and returns the filtered angle.
- *
- * @param filter Pointer to Kalman filter instance.
- * @param newAngle Angle measured from accelerometer (degrees)
- * @param newRate Gyroscope angular rate (degrees/sec)
- * @param dt Time step (seconds)
- *
- * @return Filtered angle (degrees)
- */
-float Kalman_GetAngle(Kalman_t *filter,
-                      float newAngle,
-                      float newRate,
-                      float dt);
+/\*\*
 
-#ifdef __cplusplus
+- @brief Update the Kalman filter.
+-
+- Combines:
+-
+  - Accelerometer-derived angle
+-
+  - Gyroscope angular rate
+-
+- to produce a filtered attitude angle.
+-
+- @param filter  Pointer to Kalman filter instance.
+- @param newAngle Accelerometer-derived angle in degrees.
+- @param newRate  Gyroscope rate in degrees/second.
+- @param dt       Control-loop timestep in seconds.
+-
+- @return Filtered angle in degrees.
+  \*/
+  float Kalman\_GetAngle(
+  Kalman\_t \*filter,
+  float newAngle,
+  float newRate,
+  float dt
+  );
+
+\#ifdef \_\_cplusplus
 }
-#endif
+\#endif
 
-#endif /* KALMAN_H */
+\#endif /\* KALMAN\_H \*/
